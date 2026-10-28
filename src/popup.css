@@ -1,0 +1,227 @@
+:root {
+  color-scheme: light;
+  --ink: #241c17;
+  --muted: #6b5e53;
+  --line: #e4d9cc;
+  --paper: #f6f1e8;
+  --card: #fffdf9;
+  --seal: #8f2d2a;
+  --seal-ink: #fff8f4;
+  --ok-bg: #e7f5ee;
+  --ok: #145239;
+  --err-bg: #fde8e4;
+  --err: #7f1d1d;
+  --warn-bg: #fff4e5;
+  --warn-line: #efd0a4;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  width: 380px;
+  margin: 0;
+  padding: 14px 14px 16px;
+  color: var(--ink);
+  background:
+    radial-gradient(120px 80px at 100% 0%, rgba(143, 45, 42, 0.08), transparent 70%),
+    var(--paper);
+  font: 13.5px/1.45 "Segoe UI", "PingFang SC", "Noto Sans CJK SC", "Noto Sans SC", "Microsoft YaHei", sans-serif;
+}
+
+.top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.brand { display: flex; gap: 10px; align-items: center; min-width: 0; }
+
+.mark {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  background: var(--seal);
+  color: var(--seal-ink);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  flex: none;
+}
+
+h1, h2, p { margin: 0; }
+
+h1 { font-size: 16px; font-weight: 700; letter-spacing: 0.01em; }
+
+h2 { font-size: 13px; font-weight: 700; }
+
+#subtitle, .hint, .boundary { color: var(--muted); }
+
+.boundary { margin: 8px 0; }
+
+.lang {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  overflow: hidden;
+  background: var(--card);
+  flex: none;
+}
+
+.lang button {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 4px 8px;
+  font: inherit;
+  cursor: pointer;
+}
+
+.lang button.on {
+  background: var(--seal);
+  color: var(--seal-ink);
+}
+
+.quota {
+  margin-top: 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--card);
+  border: 1px solid var(--line);
+}
+
+.quota p + p { margin-top: 2px; }
+
+.quota.blocked {
+  background: var(--warn-bg);
+  border-color: var(--warn-line);
+}
+
+#quota-line { font-weight: 700; }
+
+.btn {
+  font: inherit;
+  border-radius: 10px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.btn:disabled { cursor: not-allowed; opacity: 0.45; }
+
+.btn.ghost {
+  width: 100%;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink);
+}
+
+.btn.primary {
+  border: 0;
+  background: var(--seal);
+  color: var(--seal-ink);
+  font-weight: 600;
+}
+
+.btn:focus-visible, .lang button:focus-visible, input:focus-visible {
+  outline: 2px solid var(--seal);
+  outline-offset: 2px;
+}
+
+.status {
+  margin-top: 8px;
+  border-radius: 10px;
+  padding: 0;
+}
+
+.status:empty { display: none; }
+
+.status.show { padding: 8px 10px; }
+
+.status.error { background: var(--err-bg); color: var(--err); }
+.status.ok { background: var(--ok-bg); color: var(--ok); }
+.status.info { background: var(--card); color: var(--ink); border: 1px solid var(--line); }
+
+.tables { margin-top: 8px; }
+
+.legend { margin-bottom: 6px; font-weight: 600; }
+
+.table-list {
+  max-height: 168px;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.choice {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 8px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--card);
+  cursor: pointer;
+}
+
+.choice span { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.choice small { color: var(--muted); }
+
+.choice .cols {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 300px;
+}
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 10px;
+}
+
+#export-note { margin-top: 6px; }
+
+.cta {
+  margin-top: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+.cta.hot {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+.cta-strong { font-weight: 700; margin-top: 2px; }
+
+.cta-contact { margin-top: 2px; }
+
+.license {
+  margin-top: 12px;
+  padding-top: 8px;
+}
+
+#license-help { margin: 4px 0 8px; }
+
+#license-form { display: flex; gap: 6px; }
+
+#license-input {
+  flex: 1;
+  min-width: 0;
+  border: 1px solid var(--line);
+  background: var(--card);
+  border-radius: 10px;
+  padding: 8px 10px;
+  font: inherit;
+  color: var(--ink);
+}
+
+#license-save { width: auto; flex: none; }
+
+#license-state { margin-top: 6px; }

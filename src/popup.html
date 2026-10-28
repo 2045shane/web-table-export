@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>导出</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <span class="mark" aria-hidden="true">表</span>
+      <div>
+        <h1 id="title">网页表格导出</h1>
+        <p id="subtitle">导出当前页看得见的表格</p>
+      </div>
+    </div>
+    <div class="lang" role="group" id="lang-group" aria-label="语言">
+      <button type="button" id="lang-zh">中文</button>
+      <button type="button" id="lang-en">EN</button>
+    </div>
+  </header>
+
+  <section class="quota" id="quota-box">
+    <p id="quota-line">今日剩余</p>
+    <p id="quota-hint" class="hint"></p>
+  </section>
+
+  <p id="boundary" class="boundary"></p>
+
+  <button type="button" id="scan" class="btn ghost">重新扫描</button>
+
+  <div id="status" class="status" role="status"></div>
+
+  <section id="tables" class="tables" hidden>
+    <p id="tables-legend" class="legend"></p>
+    <div id="table-list" class="table-list"></div>
+  </section>
+
+  <div class="actions">
+    <button type="button" id="export-csv" class="btn primary" disabled>导出 CSV</button>
+    <button type="button" id="export-xlsx" class="btn primary" disabled>导出 Excel</button>
+  </div>
+  <p id="export-note" class="hint"></p>
+
+  <footer class="cta" id="cta">
+    <p id="cta-note" class="hint"></p>
+    <p class="cta-strong" lang="zh">有问题请联系我</p>
+    <p class="cta-contact" lang="zh">小红书私信「珊哥爱读书」</p>
+  </footer>
+
+  <section class="license" id="license-box">
+    <h2 id="license-title">许可码（占位）</h2>
+    <p id="license-help" class="hint"></p>
+    <form id="license-form">
+      <input id="license-input" name="license" maxlength="120" autocomplete="off" spellcheck="false">
+      <button type="submit" id="license-save" class="btn ghost">保存</button>
+    </form>
+    <p id="license-state" class="hint"></p>
+  </section>
+
+  <script src="quota.js"></script>
+  <script src="i18n.js"></script>
+  <script src="csv.js"></script>
+  <script src="xlsx.js"></script>
+  <script src="popup.js"></script>
+</body>
+</html>

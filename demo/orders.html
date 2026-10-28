@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>周末市集价目表</title>
+  <style>
+    body { margin: 0; font: 16px/1.5 "Iowan Old Style", "Palatino Linotype", "Songti SC", serif; color: #241c17; background: #f7f1e6; }
+    main { max-width: 760px; margin: 0 auto; padding: 48px 20px 80px; }
+    h1 { font-size: 36px; margin: 0 0 8px; }
+    .lead { color: #5c5148; margin: 0 0 28px; }
+    table { width: 100%; border-collapse: collapse; background: #fffdf8; }
+    caption { text-align: left; font-weight: 700; padding-bottom: 8px; }
+    th, td { border-bottom: 1px solid #e6dccf; text-align: left; padding: 10px 12px; }
+    th { font-size: 13px; letter-spacing: 0.04em; color: #6d6258; }
+    td.num, th.num { text-align: right; }
+  </style>
+</head>
+<body>
+  <main>
+    <p>公开页面 · 普通 HTML 表格</p>
+    <h1>周末市集价目表</h1>
+    <p class="lead">下面这张表是当前页唯一的数据表。扩展应读到这 4 行，而不是一整页说明文字。</p>
+    <table id="prices">
+      <caption>本周六摊位</caption>
+      <thead>
+        <tr>
+          <th>货号</th>
+          <th>品名</th>
+          <th class="num">单价</th>
+          <th>单位</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>A-01</td><td>桂花年糕</td><td class="num">18.00</td><td>盒</td></tr>
+        <tr><td>A-02</td><td>酱油黄豆</td><td class="num">12.50</td><td>袋</td></tr>
+        <tr><td>B-11</td><td>冷泡茶</td><td class="num">9.00</td><td>瓶</td></tr>
+        <tr><td>C-03</td><td>手帕</td><td class="num">26.00</td><td>条</td></tr>
+      </tbody>
+    </table>
+  </main>
+</body>
+</html>
