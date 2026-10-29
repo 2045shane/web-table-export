@@ -1,6 +1,8 @@
 /**
  * Toolbar popup. Parsing lives only in parser.js, injected into the active tab.
- * This file turns the returned rows into CSV / xlsx and enforces the daily quota.
+ * This file turns the returned rows into CSV / xlsx and enforces local quotas.
+ * CSV and Excel are both offered on the free tier. Over the daily limit or the
+ * per-export row cap, the download does not start.
  */
 (function () {
   'use strict';
@@ -14,13 +16,10 @@
   var lang = 'zh';
   var scanResult = null;
   var scanning = false;
+  var lastExportName = '';
 
   function dict() {
     return i18n.STR[lang] || i18n.STR.zh;
-  }
-
-  function limit() {
-    return quotaApi.FREE_DAILY_EXPORT_LIMIT;
   }
 
   function storage() {
@@ -48,15 +47,36 @@
 
   function renderQuota() {
     var view = quotaApi.peek(storage(), new Date());
+    var freeDailyLimit = quotaApi.FREE_DAILY_EXPORT_LIMIT;
+    var freeMaxRows = quotaApi.FREE_EXPORT_MAX_ROWS;
     var box = document.getElementById('quota-box');
     var line = document.getElementById('quota-line');
+    var rows = document.getElementById('quota-rows');
     var hint = document.getElementById('quota-hint');
+    var cap = document.getElementById('cap-unlock');
     var cta = document.getElementById('cta');
-    line.textContent = i18n.fill(dict().quota, { remaining: view.remaining, limit: limit() });
-    hint.textContent = i18n.fill(dict().quotaHint, { limit: limit() });
+    var licenseBox = document.getElementById('license-box');
+    var text = dict();
+    line.textContent = i18n.fill(view.unlocked ? text.quotaPaid : text.quota, {
+      remaining: view.remaining,
+      limit: view.limit,
+    });
+    if (view.unlocked) {
+      rows.textContent = i18n.fill(text.rowCapPaid, {
+        freeLimit: freeDailyLimit,
+        freeRows: freeMaxRows,
+      });
+      hint.textContent = text.quotaHintPaid;
+    } else {
+      rows.textContent = i18n.fill(text.rowCapFree, { maxRows: view.maxRows });
+      hint.textContent = i18n.fill(text.quotaHint, { limit: freeDailyLimit });
+    }
     var blocked = !view.allowed;
     box.classList.toggle('blocked', blocked);
     cta.classList.toggle('hot', blocked);
+    licenseBox.classList.toggle('attention', blocked);
+    cap.hidden = !blocked;
+    cap.textContent = blocked ? i18n.fill(text.capUnlock, { remaining: view.remaining }) : '';
     return view;
   }
 
@@ -64,8 +84,11 @@
     var view = quotaApi.peek(storage(), new Date());
     var input = document.getElementById('license-input');
     var state = document.getElementById('license-state');
-    if (document.activeElement !== input) input.value = view.state.licenseNote || '';
-    state.textContent = view.state.licenseNote ? dict().licenseSaved : dict().licenseEmpty;
+    var stored = view.state.licenseNote || '';
+    if (document.activeElement !== input && stored) input.value = stored;
+    if (view.unlocked) state.textContent = dict().licenseUnlocked;
+    else if (stored) state.textContent = dict().licenseInvalidStored;
+    else state.textContent = dict().licenseEmpty;
   }
 
   function selectedTable() {
@@ -80,11 +103,24 @@
   }
 
   function renderActions() {
-    var view = quotaApi.peek(storage(), new Date());
     var table = selectedTable();
-    var enabled = !!(view.allowed && table && table.rows && table.rows.length);
+    var count = table && table.rows ? table.rows.length : 0;
+    var gate = quotaApi.assessExport(storage(), new Date(), count);
+    var enabled = !!(table && gate.ok);
     document.getElementById('export-csv').disabled = !enabled;
     document.getElementById('export-xlsx').disabled = !enabled;
+    return gate;
+  }
+
+  function onTableChange() {
+    var gate = renderActions();
+    var status = document.getElementById('status');
+    if (gate.error === 'quota') setStatusCode('error', 'quota-block');
+    else if (gate.error === 'row-cap') {
+      setStatusCode('error', 'row-cap', { rows: gate.rowCount, maxRows: gate.maxRows });
+    } else if (status.dataset.code === 'row-cap' || status.dataset.code === 'quota-block') {
+      clearStatusCode();
+    }
   }
 
   function renderTables() {
@@ -93,6 +129,7 @@
     var legend = document.getElementById('tables-legend');
     var previous = document.querySelector('input[name="table"]:checked');
     var previousIndex = previous ? Number(previous.value) : null;
+    var view = quotaApi.peek(storage(), new Date());
     list.replaceChildren();
     if (!scanResult || !scanResult.ok || !scanResult.tables.length) {
       section.hidden = true;
@@ -115,16 +152,20 @@
       input.name = 'table';
       input.value = String(table.index);
       input.checked = table.index === preferred;
-      input.addEventListener('change', renderActions);
+      input.addEventListener('change', onTableChange);
       var text = document.createElement('span');
       var title = document.createElement('strong');
       var source = dict().sources[table.source] || table.source;
       title.textContent = table.index + '. ' + (table.label || source);
       var meta = document.createElement('small');
-      meta.textContent = source + ' · ' + i18n.fill(dict().rows, {
+      var rowLabel = i18n.fill(dict().rows, {
         rows: table.rows.length,
         cols: table.columns.length,
       });
+      if (view.maxRows != null && table.rows.length > view.maxRows) {
+        rowLabel += ' · ' + i18n.fill(dict().overCap, { maxRows: view.maxRows });
+      }
+      meta.textContent = source + ' · ' + rowLabel;
       var cols = document.createElement('small');
       cols.className = 'cols';
       cols.textContent = table.columns.join(' · ');
@@ -149,6 +190,7 @@
     document.getElementById('license-title').textContent = text.licenseTitle;
     document.getElementById('license-help').textContent = text.licenseHelp;
     document.getElementById('license-save').textContent = text.licenseSave;
+    document.getElementById('license-clear').textContent = text.licenseClear;
     document.getElementById('license-input').placeholder = text.licensePlaceholder;
     document.getElementById('lang-group').setAttribute('aria-label', text.langLabel);
     var note = document.getElementById('cta-note');
@@ -164,22 +206,40 @@
   }
 
   function messageForCode(code) {
-    if (code === 'quota-block') return i18n.fill(dict().quotaBlock, { limit: limit() });
-    if (code === 'scanning') return dict().scanning;
+    var text = dict();
+    var status = document.getElementById('status');
+    var view = quotaApi.peek(storage(), new Date());
+    if (code === 'quota-block') {
+      return i18n.fill(view.unlocked ? text.quotaBlockPaid : text.quotaBlock, {
+        limit: view.limit,
+        remaining: view.remaining,
+      });
+    }
+    if (code === 'row-cap') {
+      return i18n.fill(text.errors['row-cap'], {
+        rows: status.dataset.rows || '',
+        maxRows: status.dataset.maxRows || view.freeMaxRows,
+      });
+    }
+    if (code === 'scanning') return text.scanning;
     if (code === 'exported') return statusExported();
+    if (code === 'license-unlocked') return text.licenseUnlockedStatus;
+    if (code === 'license-cleared') return text.licenseClearedStatus;
     return errorText(code);
   }
-
-  var lastExportName = '';
 
   function statusExported() {
     return i18n.fill(dict().exported, { name: lastExportName });
   }
 
-  function setStatusCode(kind, code) {
+  function setStatusCode(kind, code, extra) {
     var status = document.getElementById('status');
     status.dataset.kind = kind;
     status.dataset.code = code;
+    if (extra && extra.rows != null) status.dataset.rows = String(extra.rows);
+    else delete status.dataset.rows;
+    if (extra && extra.maxRows != null) status.dataset.maxRows = String(extra.maxRows);
+    else delete status.dataset.maxRows;
     showStatus(kind, messageForCode(code));
   }
 
@@ -187,6 +247,8 @@
     var status = document.getElementById('status');
     delete status.dataset.kind;
     delete status.dataset.code;
+    delete status.dataset.rows;
+    delete status.dataset.maxRows;
     showStatus('', '');
   }
 
@@ -243,9 +305,14 @@
         scanResult = payload;
         renderTables();
         if (!payload.ok) setStatusCode('error', payload.error || 'no-visible-table');
-        else clearStatusCode();
-        var view = renderQuota();
-        if (payload.ok && !view.allowed) setStatusCode('error', 'quota-block');
+        else {
+          var view = renderQuota();
+          if (!view.allowed) setStatusCode('error', 'quota-block');
+          else {
+            clearStatusCode();
+            onTableChange();
+          }
+        }
       });
     }).catch(function () {
       scanResult = null;
@@ -282,15 +349,15 @@
 
   function exportAs(format) {
     var table = selectedTable();
-    var view = quotaApi.peek(storage(), new Date());
-    if (!view.allowed) {
-      setStatusCode('error', 'quota-block');
+    var count = table && table.rows ? table.rows.length : 0;
+    var gate = quotaApi.assessExport(storage(), new Date(), count);
+    if (!gate.ok) {
+      if (gate.error === 'row-cap') {
+        setStatusCode('error', 'row-cap', { rows: gate.rowCount, maxRows: gate.maxRows });
+      } else if (gate.error === 'quota') setStatusCode('error', 'quota-block');
+      else setStatusCode('error', gate.error || 'no-data-rows');
       renderQuota();
       renderActions();
-      return;
-    }
-    if (!table || !table.rows || !table.rows.length) {
-      setStatusCode('error', 'no-data-rows');
       return;
     }
     var now = new Date();
@@ -325,15 +392,25 @@
     status.dataset.kind = 'ok';
     status.dataset.code = 'exported';
     showStatus('ok', statusExported());
-    if (!spent.remaining) {
-      document.getElementById('cta').classList.add('hot');
-    }
   }
 
   function setLang(next) {
     lang = next === 'en' ? 'en' : 'zh';
     try { localStorage.setItem(LANG_KEY, lang); } catch (err) { /* ignore */ }
     applyCopy();
+  }
+
+  function applyLicense(raw) {
+    var result = quotaApi.saveLicense(storage(), new Date(), raw);
+    var input = document.getElementById('license-input');
+    if (result.ok && result.unlocked) input.value = result.state.licenseNote;
+    if (result.cleared && result.ok) input.value = '';
+    renderLicense();
+    renderQuota();
+    renderActions();
+    if (!result.ok) setStatusCode('error', 'invalid-license');
+    else if (result.cleared) setStatusCode('info', 'license-cleared');
+    else setStatusCode('ok', 'license-unlocked');
   }
 
   document.getElementById('lang-zh').addEventListener('click', function () { setLang('zh'); });
@@ -343,10 +420,10 @@
   document.getElementById('export-xlsx').addEventListener('click', function () { exportAs('xlsx'); });
   document.getElementById('license-form').addEventListener('submit', function (event) {
     event.preventDefault();
-    quotaApi.saveLicense(storage(), new Date(), document.getElementById('license-input').value);
-    renderLicense();
-    renderQuota();
-    renderActions();
+    applyLicense(document.getElementById('license-input').value);
+  });
+  document.getElementById('license-clear').addEventListener('click', function () {
+    applyLicense('');
   });
 
   lang = readLang();

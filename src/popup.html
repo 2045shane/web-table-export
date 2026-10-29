@@ -23,7 +23,20 @@
 
   <section class="quota" id="quota-box">
     <p id="quota-line">今日剩余</p>
+    <p id="quota-rows" class="hint"></p>
     <p id="quota-hint" class="hint"></p>
+    <p id="cap-unlock" class="hint" hidden></p>
+  </section>
+
+  <section class="license" id="license-box">
+    <h2 id="license-title">许可码</h2>
+    <p id="license-help" class="hint"></p>
+    <form id="license-form">
+      <input id="license-input" name="license" maxlength="120" autocomplete="off" spellcheck="false" aria-describedby="license-help license-state">
+      <button type="submit" id="license-save" class="btn ghost">保存</button>
+      <button type="button" id="license-clear" class="btn ghost">清除</button>
+    </form>
+    <p id="license-state" class="hint"></p>
   </section>
 
   <p id="boundary" class="boundary"></p>
@@ -48,16 +61,6 @@
     <p class="cta-strong" lang="zh">有问题请联系我</p>
     <p class="cta-contact" lang="zh">小红书私信「珊哥爱读书」</p>
   </footer>
-
-  <section class="license" id="license-box">
-    <h2 id="license-title">许可码（占位）</h2>
-    <p id="license-help" class="hint"></p>
-    <form id="license-form">
-      <input id="license-input" name="license" maxlength="120" autocomplete="off" spellcheck="false">
-      <button type="submit" id="license-save" class="btn ghost">保存</button>
-    </form>
-    <p id="license-state" class="hint"></p>
-  </section>
 
   <script src="quota.js"></script>
   <script src="i18n.js"></script>
