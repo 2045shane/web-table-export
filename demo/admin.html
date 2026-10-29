@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>订单管理</title>
+  <style>
+    body { margin: 0; font: 14px/1.45 "Segoe UI", "PingFang SC", "Noto Sans SC", sans-serif; color: #1f1a17; background: #f3f0eb; }
+    .app { display: grid; grid-template-columns: 200px 1fr; min-height: 100vh; }
+    aside { background: #2b211c; color: #f6efe6; padding: 22px 16px; }
+    aside strong { display: block; font-size: 16px; margin-bottom: 18px; }
+    aside p { margin: 0 0 10px; color: #d9cfc4; }
+    main { padding: 22px 28px 48px; }
+    header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 16px; }
+    h1 { font-size: 22px; margin: 0; }
+    .meta { color: #6e6258; }
+    .panel { background: white; border: 1px solid #e4dcd2; border-radius: 12px; overflow: hidden; margin-bottom: 22px; }
+    .el-table table { width: 100%; border-collapse: collapse; }
+    .el-table th, .el-table td { border-bottom: 1px solid #eee6dc; padding: 10px 12px; text-align: left; }
+    .el-table th { background: #faf7f2; font-weight: 650; color: #5c5148; }
+    h2 { font-size: 16px; margin: 0 0 8px; }
+    [role="grid"] { display: grid; gap: 0; border: 1px solid #e4dcd2; border-radius: 12px; overflow: hidden; background: white; }
+    [role="row"] { display: grid; grid-template-columns: 1.4fr 1fr 1fr; }
+    [role="columnheader"], [role="gridcell"] { padding: 10px 12px; border-bottom: 1px solid #eee6dc; }
+    [role="columnheader"] { background: #faf7f2; color: #5c5148; font-weight: 650; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside>
+      <strong>市集后台</strong>
+      <p>订单</p>
+      <p>库存</p>
+      <p>对账</p>
+    </aside>
+    <main>
+      <header>
+        <h1>订单管理</h1>
+        <span class="meta">电商后台样式 · 表头和表身是两张表</span>
+      </header>
+      <section class="panel">
+        <div class="el-table" id="orders-widget" aria-label="订单表">
+          <div class="el-table__header-wrapper">
+            <table>
+              <thead>
+                <tr>
+                  <th>订单号</th>
+                  <th>渠道</th>
+                  <th>金额</th>
+                  <th>状态</th>
+                </tr>
+              </thead>
+            </table>
+          </div>
+          <div class="el-table__body-wrapper">
+            <table>
+              <tbody>
+                <tr>
+                  <td>SO-2401</td>
+                  <td>小红书</td>
+                  <td>128.00</td>
+                  <td>待发货</td>
+                </tr>
+                <tr>
+                  <td>SO-2402</td>
+                  <td>自营</td>
+                  <td>56.50</td>
+                  <td>已付款</td>
+                </tr>
+                <tr>
+                  <td>SO-2403</td>
+                  <td>门店</td>
+                  <td>18.00</td>
+                  <td>已完成</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+      <h2>今日流水</h2>
+      <div role="grid" id="ledger" aria-label="今日流水">
+        <div role="row">
+          <div role="columnheader">科目</div>
+          <div role="columnheader">收入</div>
+          <div role="columnheader">支出</div>
+        </div>
+        <div role="row">
+          <div role="gridcell">货款</div>
+          <div role="gridcell">202.50</div>
+          <div role="gridcell"></div>
+        </div>
+        <div role="row">
+          <div role="gridcell">包装</div>
+          <div role="gridcell"></div>
+          <div role="gridcell">14.00</div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>

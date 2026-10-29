@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <title>AC-S02 visible tables</title>
+</head>
+<body>
+  <p>说明文字，不是表格。</p>
+
+  <table id="secret" hidden>
+    <thead>
+      <tr><th>密码</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>hunter2</td></tr>
+    </tbody>
+  </table>
+
+  <table id="orders">
+    <caption>订单</caption>
+    <thead>
+      <tr>
+        <th> 订单号 </th>
+        <th>商品</th>
+        <th colspan="2">金额</th>
+        <th></th>
+        <th>备注</th>
+        <th>备注</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1001</td>
+        <td>笔记本</td>
+        <td>12.50</td>
+        <td>元</td>
+        <td></td>
+        <td>加急</td>
+        <td>已确认</td>
+      </tr>
+      <tr style="display:none">
+        <td>HIDDEN</td>
+        <td>x</td>
+        <td>0</td>
+        <td>x</td>
+        <td></td>
+        <td>x</td>
+        <td>x</td>
+      </tr>
+      <tr>
+        <td>1002</td>
+        <td>鼠标<input type="hidden" value="hunter2"></td>
+        <td>45.00</td>
+        <td>元</td>
+        <td></td>
+        <td></td>
+        <td>缺货</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <table id="gone" style="display:none">
+    <tr><th>隐藏列</th></tr>
+    <tr><td>NOPE</td></tr>
+  </table>
+
+  <div class="el-table" id="sku-widget" aria-label="库存表">
+    <div class="el-table__fixed">
+      <table id="fixed-clone">
+        <thead>
+          <tr><th>SKU</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>SHOULD-NOT-APPEAR</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="el-table__header-wrapper">
+      <table id="admin-header">
+        <thead>
+          <tr>
+            <th>SKU</th>
+            <th>库存</th>
+            <th>价格</th>
+          </tr>
+        </thead>
+      </table>
+    </div>
+    <div class="el-table__body-wrapper">
+      <table id="admin-body">
+        <tbody>
+          <tr>
+            <td>SKU-1</td>
+            <td><input value="8"></td>
+            <td>99.00</td>
+          </tr>
+          <tr>
+            <td>SKU-2</td>
+            <td>0</td>
+            <td>15.00</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div role="grid" id="ledger" aria-label="分类账">
+    <div role="row">
+      <div role="columnheader">科目</div>
+      <div role="columnheader">借方</div>
+      <div role="columnheader">贷方</div>
+    </div>
+    <div role="row">
+      <div role="gridcell">现金</div>
+      <div role="gridcell">100.00</div>
+      <div role="gridcell"></div>
+    </div>
+    <div role="row">
+      <div role="gridcell">收入</div>
+      <div role="gridcell"></div>
+      <div role="gridcell">100.00</div>
+    </div>
+  </div>
+
+  <div id="class-grid" aria-label="渠道表">
+    <div class="table-row header">
+      <div class="table-cell">渠道</div>
+      <div class="table-cell">订单量</div>
+    </div>
+    <div class="table-row">
+      <div class="table-cell">小红书</div>
+      <div class="table-cell">3</div>
+    </div>
+  </div>
+</body>
+</html>

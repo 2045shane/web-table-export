@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "网页表格导出",
+  "short_name": "导出",
+  "description": "把当前页看得见的表格导出成 CSV 和 Excel。每天免费 3 次。Export visible tables on the current page to CSV and Excel.",
+  "version": "0.1.0",
+  "action": {
+    "default_title": "导出",
+    "default_popup": "src/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png"
+    }
+  },
+  "permissions": ["activeTab", "scripting"],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

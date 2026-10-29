@@ -1,0 +1,13 @@
+{
+  "name": "web-table-export",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chrome MV3 extension that exports visible tables on the current page to CSV and Excel.",
+  "scripts": {
+    "test": "node --test test/*.test.js"
+  },
+  "devDependencies": {
+    "jsdom": "^25.0.1"
+  },
+  "license": "MIT"
+}
