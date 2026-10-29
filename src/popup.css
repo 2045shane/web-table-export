@@ -209,6 +209,15 @@ h2 { font-size: 13px; font-weight: 700; }
 
 #license-help { margin: 4px 0 8px; }
 
+.license.attention {
+  background: var(--warn-bg);
+  border: 1px solid var(--warn-line);
+  border-radius: 12px;
+  padding: 10px;
+}
+
+#cap-unlock { margin-top: 6px; font-weight: 600; color: var(--ink); }
+
 #license-form { display: flex; gap: 6px; }
 
 #license-input {
@@ -222,6 +231,7 @@ h2 { font-size: 13px; font-weight: 700; }
   color: var(--ink);
 }
 
-#license-save { width: auto; flex: none; }
+#license-save,
+#license-clear { width: auto; flex: none; padding-inline: 12px; }
 
 #license-state { margin-top: 6px; }
