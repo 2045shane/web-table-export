@@ -98,7 +98,25 @@ h2 { font-size: 13px; font-weight: 700; }
   border-color: var(--warn-line);
 }
 
-#quota-line { font-weight: 700; }
+#tier-line, #quota-line { font-weight: 700; }
+
+#subscription-notice {
+  margin-top: 4px;
+  font-weight: 700;
+  color: var(--err);
+}
+
+.soon {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px dashed var(--line);
+  color: var(--muted);
+  background: transparent;
+}
+
+.soon[hidden] { display: none !important; }
 
 .btn {
   font: inherit;

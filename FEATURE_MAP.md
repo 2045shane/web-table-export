@@ -1,6 +1,7 @@
 # Feature map
 
 Cut: `PLUGIN-PAYWALL-CUT-2026-10-29-v1`  
+Subscription placeholder: `WEB-TABLE-SUB-CUT-2026-11-10-v1`  
 Audience: agents editing this repo. Read this before touching the popup, quotas, or license. User-facing detail stays in `README.md`.
 
 This file is the UI and module map. It is not a second quota implementation. Numbers live only in `src/quota.js`.
@@ -19,11 +20,15 @@ Top to bottom in `src/popup.html`. Copy is filled from `src/i18n.js`. Chinese is
 
 | Surface | DOM | What the user sees | Module |
 | --- | --- | --- | --- |
+| Tier | `#tier-line` | Current tier only: `免费`, `永久许可`, or `订阅至 YYYY-MM`. English: `Free`, `Permanent license`, `Subscribed through YYYY-MM`. | `renderQuota` |
 | Daily line | `#quota-line` | Free: `每天 {limit} 次 · 今日剩余 {remaining}`. Paid: `已解锁 · 每天 {limit} 次 · 今日剩余 {remaining}`. `{limit}` is the active tier, from `peek().limit`. | `renderQuota` |
 | Row cap | `#quota-rows` | Free: `免费单次最多 {maxRows} 行`. Paid: `本机无硬顶`, and the free numbers again. | `renderQuota` |
-| Policy hint | `#quota-hint` | Local date reset. No server quota. | `renderQuota` |
+| Policy hint | `#quota-hint` | Local date reset. No server quota. A live subscription says it lasts for that natural month. | `renderQuota` |
+| Expiry notice | `#subscription-notice` | Hidden unless the stored `WTE2.SUB` month is before the local month. Then exactly `订阅已到期` (English `Subscription expired`). `#tier-line` stays `免费`. | `renderQuota` |
 | Hit-cap banner | `#cap-unlock` | Hidden until the day is used up. Then: remaining, 「有问题请联系我」, 小红书「珊哥爱读书」, and a pointer at the license field. | `renderQuota` |
-| License | `#license-box` `#license-input` `#license-save` `#license-clear` `#license-state` | Always in the popup, directly under the quota card. On a used-up day the box gets `.attention`. | `renderLicense`, `applyLicense` |
+| Hit-cap placeholder | `#cap-subscription` | Hidden until the day is used up. Then `按月订阅（即将上线）`. Text only. Not a button and not a link. | `renderQuota` |
+| License | `#license-box` `#license-input` `#license-save` `#license-clear` `#license-state` | Always in the popup, directly under the quota card. On a used-up day the box gets `.attention`. State repeats the tier, or `订阅已到期` when the stored subscription is past. | `renderLicense`, `applyLicense` |
+| Options placeholder | `#subscription-placeholder` | Always visible inside `#license-box`. Same phrase: `按月订阅（即将上线）`. There is still no extension options page; this block is the in-popup options surface for the subscription cut. | `applyCopy` |
 | Status | `#status` | Scan errors, `quota-block`, `row-cap`, `invalid-license`, unlock, clear, download started. | `setStatusCode` |
 | Table pick | `#tables` `#table-list` | One radio per visible table. Over the free row cap, the meta line adds `overCap`. | `renderTables` |
 | Export | `#export-csv` `#export-xlsx` | Disabled unless `assessExport` returns ok. Both formats. | `exportAs` |
@@ -35,7 +40,7 @@ Top to bottom in `src/popup.html`. Copy is filled from `src/i18n.js`. Chinese is
 
 | File | Owns | Do not |
 | --- | --- | --- |
-| `src/quota.js` | Named limits, `licenseNote` validation, `peek`, `assessExport`, `consumeExport`, `saveLicense` | Re-declare the same numbers in the popup or in i18n |
+| `src/quota.js` | Named limits, `licenseNote` validation, `peek`, `assessExport`, `consumeExport`, `saveLicense`, `SUBSCRIPTION_CHECKOUT_ENABLED` | Re-declare the same numbers in the popup or in i18n. Set the checkout flag to true. Add a payment URL |
 | `src/i18n.js` | zh/en templates with `{limit}`, `{remaining}`, `{maxRows}` | Hard-code `3` or `100` into those templates |
 | `src/popup.js` | Scan, render, license form, download | Slice `table.rows` to the cap. Branch CSV vs Excel on `unlocked` |
 | `src/parser.js` | `visible-table-v1` only | Row caps, licenses, or paywall copy |
@@ -66,16 +71,30 @@ Defined once, as assignments, in `src/quota.js`:
 
 That path is gone. Current rule:
 
-1. `tierOf` calls `isValidLicense(licenseNote)`.
-2. `isValidLicense` is `normalizeLicense` (trim, strip whitespace, `WTE1.PAID.` + 8 hex FNV-1a of the body `WTE1.PAID`).
+1. `tierOf` calls `isValidLicense(licenseNote)` and also requires `licenseStatus(licenseNote, now).active`. The first call is the checksum. The second is the natural month. An expired subscription still has a checksum, and it must not stay paid.
+2. `isValidLicense(note, now)` with a date is true only when the checksum matches and the code is active on `now`. `WTE1.PAID` is always active. `WTE2.SUB` is active only in its natural month. `isValidLicense(note)` without a date checks the checksum only.
 3. `saveLicense('')` or the Clear button writes `licenseNote: ''` and the device is free again.
 4. `saveLicense` of anything that does not normalize writes `licenseNote: ''`, returns `error: 'invalid-license'`, and does not unlock. A previous good code is cleared too.
-5. Only a normalized code is stored. `peek().unlocked` is then true, `limit` is `PAID_DAILY_EXPORT_LIMIT`, and `maxRows` is `null`.
+5. A normalized code is what gets stored. `peek().unlocked` is then true for `WTE1` and for a `WTE2` code whose `YYYYMM` equals the local month: `limit` is `PAID_DAILY_EXPORT_LIMIT`, and `maxRows` is `null`.
 6. Today’s `count` is not reset on unlock or on clear. After 3 free exports, a valid code makes a 4th export allowed (`remaining` becomes `1000 - count`). Clear after more than 3 exports shows remaining 0.
 
 A text-only `licenseNote` (for example `CONTACT-珊哥爱读书`, or a checksum of `00000000`) does not unlock. Do not bring back “saved locally, not verified, no extra exports”.
 
-Sample code the checker accepts: `WTE1.PAID.3c5a2030` (`buildLicense()`). It is a local checksum, not an API key and not a payment receipt.
+Sample permanent code: `WTE1.PAID.3c5a2030` (`buildLicense()`). It is a local checksum, not an API key and not a payment receipt.
+
+## WTE2.SUB natural month
+
+Cut `WEB-TABLE-SUB-CUT-2026-11-10-v1`. Format: `WTE2.SUB.<YYYYMM>.<checksum>`.
+
+The checksum is the same FNV-1a helper, over the body `WTE2.SUB.YYYYMM` (the month is inside the checksum, so October’s code is not November’s code). Sample for November 2026: `WTE2.SUB.202611.d5acd8e1` (`buildSubscriptionLicense('202611')`). October 2026: `WTE2.SUB.202610.d4acd74e`.
+
+Expiry is a natural month (自然月) in the device’s local timezone. It is hardcoded. Do not switch it to a rolling 30 days. `202611` is active from local `2026-11-01 00:00:00` through `2026-11-30 23:59:59`. `2026-12-01 00:00:00` is expired. A later month stored early does not unlock and is not labeled expired.
+
+`peek` / `assessExport` / `consumeExport` / `saveLicense` all take `now`. When the month rolls over, the stored note stays and the tier becomes free without another save. `subscriptionExpired` is then true, `limit` is 3, `maxRows` is 100. The popup shows `订阅已到期`. After 3 exports that day, the next export is `quota` and no file is written.
+
+`SUBSCRIPTION_CHECKOUT_ENABLED` is assigned `false` once in `src/quota.js`. The popup throws if it is not false. Do not add a branch that opens a payment page when the flag changes. This cut has no payment SDK and no checkout URL. The placeholder 「按月订阅（即将上线）」 is copy only, on `#cap-subscription` and `#subscription-placeholder`, next to the existing 「有问题请联系我」 / 「珊哥爱读书」 CTA.
+
+Local codes are not anti-crack. The source is public, so anyone can recompute the checksum. Say that in `README.md`. Do not add a server license, a webhook, or a new permission to “fix” that. Free limits stay 3/day and 100 rows. `manifest.json` stays `activeTab` + `scripting`.
 
 ## Export gate
 
@@ -97,6 +116,6 @@ Failed builds (`export-failed`) do not consume. A second check of `consumeExport
 1. `node scripts/check-paywall-invariants.mjs` (`npm run lint`)
 2. `node --test test/*.test.js`
 
-The lint script fails the process if the free daily assignment is not the single `= 3`, if `saveLicense` stores raw text again, if `tierOf` stops calling `isValidLicense`, if a plain note unlocks or a valid code does not, if `exportAs` slices rows or skips `assessExport`, or if `src/` picks up a payment SDK or an API-key shape. `.github/workflows/ci.yml` runs `npm test` on push and pull request.
+The lint script fails the process if the free daily assignment is not the single `= 3`, if `saveLicense` stores raw text again, if `tierOf` stops calling `isValidLicense`, if a plain note unlocks or a valid code does not, if an expired `WTE2.SUB` code does not resolve to the free tier, if `SUBSCRIPTION_CHECKOUT_ENABLED` is not the single `= false`, if `src/` picks up a payment SDK or a checkout URL, or if `exportAs` slices rows or skips `assessExport`. `.github/workflows/ci.yml` runs `npm test` on push and pull request.
 
 Popup behavior covering the same rules is in `test/popup-quota.test.js` (jsdom loads the real `src/popup.html` and scripts).

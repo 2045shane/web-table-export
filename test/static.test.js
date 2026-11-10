@@ -131,6 +131,13 @@ test('README states the boundary, quota, contact, and load steps', () => {
     '服务条款',
     '本机无硬顶',
     'WTE1.PAID.3c5a2030',
+    'WTE2.SUB.202611.d5acd8e1',
+    'WEB-TABLE-SUB-CUT-2026-11-10-v1',
+    'SUBSCRIPTION_CHECKOUT_ENABLED',
+    '订阅已到期',
+    '按月订阅（即将上线）',
+    '自然月',
+    '不是防破解',
     '支付 SDK',
     '不上架',
     String(rows),
@@ -138,6 +145,29 @@ test('README states the boundary, quota, contact, and load steps', () => {
   ]) {
     assert.equal(readme.includes(phrase), true, phrase);
   }
+});
+
+test('subscription placeholder has no payment SDK or checkout URL', () => {
+  const quotaSrc = read('src/quota.js');
+  assert.match(quotaSrc, /var SUBSCRIPTION_CHECKOUT_ENABLED = false;/);
+  assert.equal(/SUBSCRIPTION_CHECKOUT_ENABLED\s*=\s*true/.test(quotaSrc), false);
+  const files = walk(path.join(root, 'src'), []).concat([
+    path.join(root, 'manifest.json'),
+    path.join(root, 'package.json'),
+  ]);
+  const banned = /creem|dodo|stripe|paypal|lemonsqueezy|paddle|braintree|checkout/i;
+  const paymentUrl = /https?:\/\/\S*(?:checkout|creem|dodo|stripe|paddle|lemonsqueezy|paypal)/i;
+  for (const file of files) {
+    const text = fs.readFileSync(file, 'utf8').replaceAll('SUBSCRIPTION_CHECKOUT_ENABLED', '');
+    assert.equal(banned.test(text), false, file);
+    assert.equal(paymentUrl.test(text), false, file);
+  }
+  const html = read('src/popup.html');
+  assert.equal(/<a\b/i.test(html), false);
+  assert.equal(html.includes('按月订阅（即将上线）'), true);
+  assert.equal(html.includes('id="tier-line"'), true);
+  assert.equal(html.includes('id="cap-subscription"'), true);
+  assert.equal(html.includes('id="subscription-placeholder"'), true);
 });
 
 test('package and manifest do not add billing, hosting, or a server quota', () => {

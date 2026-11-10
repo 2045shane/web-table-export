@@ -118,13 +118,30 @@ if (!popupSrc.includes("files: ['src/parser.js']")) {
 }
 
 const html = read('src/popup.html');
-for (const id of ['quota-line', 'quota-rows', 'cap-unlock', 'license-input', 'license-clear', 'export-csv', 'export-xlsx']) {
+for (const id of [
+  'quota-line',
+  'quota-rows',
+  'cap-unlock',
+  'cap-subscription',
+  'tier-line',
+  'subscription-notice',
+  'subscription-placeholder',
+  'license-input',
+  'license-clear',
+  'export-csv',
+  'export-xlsx',
+]) {
   if (!html.includes('id="' + id + '"')) fail('popup.html missing #' + id);
 }
 if (!html.includes('有问题请联系我') || !html.includes('珊哥爱读书')) {
   fail('popup.html must keep the contact CTA');
 }
+if (!html.includes('按月订阅（即将上线）')) {
+  fail('popup.html must show the monthly subscription placeholder');
+}
 if (html.includes('license-box" hidden')) fail('license box must stay visible');
+if (/<a\b/i.test(html)) fail('popup.html must not contain a link');
+if (/<form[^>]*\baction=/i.test(html)) fail('popup.html must not post a form');
 
 const secret = new RegExp(
   [
@@ -133,20 +150,47 @@ const secret = new RegExp(
     'sk-' + 'proj-',
     'AKIA[0-9A-Z]{16}',
     'BEGIN (?:RSA |OPENSSH )?PRIVATE KEY',
+    'creem',
+    'dodo',
     'stripe',
     'paypal',
     'lemonsqueezy',
     'paddle',
     'braintree',
+    'checkout',
   ].join('|'),
   'i'
 );
+const paymentUrl = /https?:\/\/[^\s"'`)>]*?(?:checkout|creem|dodo|stripe|paddle|lemonsqueezy|paypal)/i;
+function withoutCheckoutFlag(text) {
+  return text.replaceAll('SUBSCRIPTION_CHECKOUT_ENABLED', '');
+}
 for (const name of srcFiles()) {
-  if (secret.test(read(path.join('src', name)))) fail(name + ' matched a key or payment SDK pattern');
+  const text = withoutCheckoutFlag(read(path.join('src', name)));
+  if (secret.test(text)) fail(name + ' matched a key or payment SDK pattern');
+  if (paymentUrl.test(text)) fail(name + ' has a payment or checkout URL');
 }
 const pkg = read('package.json');
 if (secret.test(pkg)) fail('package.json matched a payment SDK pattern');
-if (read('manifest.json').includes('host_permissions')) fail('manifest gained host_permissions');
+if (paymentUrl.test(pkg)) fail('package.json has a payment or checkout URL');
+const manifest = read('manifest.json');
+if (secret.test(withoutCheckoutFlag(manifest))) fail('manifest.json matched a payment SDK pattern');
+if (paymentUrl.test(manifest)) fail('manifest.json has a payment or checkout URL');
+if (manifest.includes('host_permissions')) fail('manifest gained host_permissions');
+if (!/^\s*var SUBSCRIPTION_CHECKOUT_ENABLED = false;\s*$/m.test(quotaSrc)) {
+  fail('SUBSCRIPTION_CHECKOUT_ENABLED must be assigned false in src/quota.js');
+}
+let checkoutAssignments = 0;
+for (const name of srcFiles()) {
+  const text = read(path.join('src', name));
+  checkoutAssignments += (text.match(/SUBSCRIPTION_CHECKOUT_ENABLED\s*=\s*false/g) || []).length;
+  if (/SUBSCRIPTION_CHECKOUT_ENABLED\s*=\s*true/.test(text)) {
+    fail(name + ' sets SUBSCRIPTION_CHECKOUT_ENABLED true');
+  }
+}
+if (checkoutAssignments !== 1) {
+  fail('SUBSCRIPTION_CHECKOUT_ENABLED must be assigned false exactly once, found ' + checkoutAssignments);
+}
 
 const map = read('FEATURE_MAP.md');
 for (const phrase of [
@@ -162,11 +206,32 @@ for (const phrase of [
   'license-input',
   '有问题请联系我',
   'PLUGIN-PAYWALL-CUT-2026-10-29-v1',
+  'WEB-TABLE-SUB-CUT-2026-11-10-v1',
+  'WTE2.SUB',
+  'SUBSCRIPTION_CHECKOUT_ENABLED',
+  '订阅已到期',
+  '按月订阅（即将上线）',
+  '自然月',
+  'tier-line',
 ]) {
   if (!map.includes(phrase)) fail('FEATURE_MAP.md missing ' + phrase);
 }
-if (!read('README.md').includes('FEATURE_MAP.md')) {
+const readme = read('README.md');
+if (!readme.includes('FEATURE_MAP.md')) {
   fail('README.md must point at FEATURE_MAP.md');
+}
+for (const phrase of [
+  'WEB-TABLE-SUB-CUT-2026-11-10-v1',
+  'WTE2.SUB',
+  'SUBSCRIPTION_CHECKOUT_ENABLED',
+  '订阅已到期',
+  '按月订阅（即将上线）',
+  '自然月',
+  '不是防破解',
+  'WTE2.SUB.202611.d5acd8e1',
+  'WTE1.PAID.3c5a2030',
+]) {
+  if (!readme.includes(phrase)) fail('README.md missing ' + phrase);
 }
 
 const quota = require(path.join(root, 'src/quota.js'));
@@ -195,6 +260,39 @@ quota.saveLicense(storage, day, '   ');
 const cleared = quota.peek(storage, day);
 if (cleared.unlocked || cleared.limit !== 3 || cleared.maxRows !== 100 || cleared.remaining !== 0) {
   fail('clearing licenseNote did not return to the free tier');
+}
+if (quota.SUBSCRIPTION_CHECKOUT_ENABLED !== false) {
+  fail('SUBSCRIPTION_CHECKOUT_ENABLED must be false');
+}
+const subNow = new Date(2026, 10, 15, 12, 0, 0);
+const subLater = new Date(2026, 11, 1, 0, 0, 0);
+const subCode = quota.buildSubscriptionLicense('202611');
+const subStorage = memory();
+const subSaved = quota.saveLicense(subStorage, subNow, subCode);
+const subView = quota.peek(subStorage, subNow);
+if (!subSaved.unlocked || subView.tier !== 'paid' || subView.limit !== 1000 || subView.maxRows !== null) {
+  fail('current-month subscription did not unlock the paid tier');
+}
+const expiredView = quota.peek(subStorage, subLater);
+if (
+  expiredView.unlocked
+  || expiredView.tier !== 'free'
+  || expiredView.limit !== 3
+  || expiredView.maxRows !== 100
+  || !expiredView.subscriptionExpired
+) {
+  fail('expired subscription must resolve to free tier');
+}
+for (let i = 0; i < 3; i++) quota.consumeExport(subStorage, subLater);
+if (quota.assessExport(subStorage, subLater, 1).ok || quota.consumeExport(subStorage, subLater).ok) {
+  fail('expired subscription allowed an export after the free daily limit');
+}
+const permanentStorage = memory();
+if (!quota.saveLicense(permanentStorage, subLater, quota.buildLicense()).unlocked) {
+  fail('WTE1.PAID stopped unlocking');
+}
+if (quota.peek(permanentStorage, subLater).tier !== 'paid' || quota.peek(permanentStorage, subLater).limit !== 1000) {
+  fail('WTE1.PAID was not still the paid tier');
 }
 
 if (failures.length) {
