@@ -10,6 +10,9 @@
   var LANG_KEY = 'web-table-export.lang';
   var quotaApi = globalThis.WebTableExportQuota;
   var i18n = globalThis.WebTableExportI18n;
+  if (quotaApi.SUBSCRIPTION_CHECKOUT_ENABLED !== false) {
+    throw new Error('SUBSCRIPTION_CHECKOUT_ENABLED must stay false');
+  }
   var csvApi = globalThis.WebTableExportCsv;
   var xlsxApi = globalThis.WebTableExportXlsx;
 
@@ -45,6 +48,15 @@
     return errors[code] || errors['unreadable-page'];
   }
 
+  function tierLabel(view) {
+    var text = dict();
+    if (view.licenseKind === 'permanent' && view.unlocked) return text.tierPermanent;
+    if (view.licenseKind === 'subscription' && view.unlocked) {
+      return i18n.fill(text.tierSubscription, { month: view.subscriptionMonth });
+    }
+    return text.tierFree;
+  }
+
   function renderQuota() {
     var view = quotaApi.peek(storage(), new Date());
     var freeDailyLimit = quotaApi.FREE_DAILY_EXPORT_LIMIT;
@@ -54,14 +66,23 @@
     var rows = document.getElementById('quota-rows');
     var hint = document.getElementById('quota-hint');
     var cap = document.getElementById('cap-unlock');
+    var capSub = document.getElementById('cap-subscription');
+    var notice = document.getElementById('subscription-notice');
     var cta = document.getElementById('cta');
     var licenseBox = document.getElementById('license-box');
     var text = dict();
+    document.getElementById('tier-line').textContent = tierLabel(view);
     line.textContent = i18n.fill(view.unlocked ? text.quotaPaid : text.quota, {
       remaining: view.remaining,
       limit: view.limit,
     });
-    if (view.unlocked) {
+    if (view.unlocked && view.licenseKind === 'subscription') {
+      rows.textContent = i18n.fill(text.rowCapPaid, {
+        freeLimit: freeDailyLimit,
+        freeRows: freeMaxRows,
+      });
+      hint.textContent = text.quotaHintSubscription;
+    } else if (view.unlocked) {
       rows.textContent = i18n.fill(text.rowCapPaid, {
         freeLimit: freeDailyLimit,
         freeRows: freeMaxRows,
@@ -71,12 +92,15 @@
       rows.textContent = i18n.fill(text.rowCapFree, { maxRows: view.maxRows });
       hint.textContent = i18n.fill(text.quotaHint, { limit: freeDailyLimit });
     }
+    notice.hidden = !view.subscriptionExpired;
+    notice.textContent = view.subscriptionExpired ? text.subscriptionExpired : '';
     var blocked = !view.allowed;
     box.classList.toggle('blocked', blocked);
     cta.classList.toggle('hot', blocked);
     licenseBox.classList.toggle('attention', blocked);
     cap.hidden = !blocked;
     cap.textContent = blocked ? i18n.fill(text.capUnlock, { remaining: view.remaining }) : '';
+    capSub.hidden = !blocked;
     return view;
   }
 
@@ -84,11 +108,16 @@
     var view = quotaApi.peek(storage(), new Date());
     var input = document.getElementById('license-input');
     var state = document.getElementById('license-state');
+    var text = dict();
     var stored = view.state.licenseNote || '';
     if (document.activeElement !== input && stored) input.value = stored;
-    if (view.unlocked) state.textContent = dict().licenseUnlocked;
-    else if (stored) state.textContent = dict().licenseInvalidStored;
-    else state.textContent = dict().licenseEmpty;
+    if (view.subscriptionExpired) state.textContent = text.subscriptionExpired;
+    else if (view.licenseKind === 'permanent' && view.unlocked) state.textContent = text.tierPermanent;
+    else if (view.licenseKind === 'subscription' && view.unlocked) {
+      state.textContent = i18n.fill(text.tierSubscription, { month: view.subscriptionMonth });
+    } else if (view.licenseKind === 'subscription') state.textContent = text.tierFree;
+    else if (stored) state.textContent = text.licenseInvalidStored;
+    else state.textContent = text.licenseEmpty;
   }
 
   function selectedTable() {
@@ -192,6 +221,8 @@
     document.getElementById('license-save').textContent = text.licenseSave;
     document.getElementById('license-clear').textContent = text.licenseClear;
     document.getElementById('license-input').placeholder = text.licensePlaceholder;
+    document.getElementById('subscription-placeholder').textContent = text.subscriptionPlaceholder;
+    document.getElementById('cap-subscription').textContent = text.subscriptionPlaceholder;
     document.getElementById('lang-group').setAttribute('aria-label', text.langLabel);
     var note = document.getElementById('cta-note');
     note.textContent = text.ctaNote;
@@ -224,6 +255,11 @@
     if (code === 'scanning') return text.scanning;
     if (code === 'exported') return statusExported();
     if (code === 'license-unlocked') return text.licenseUnlockedStatus;
+    if (code === 'subscription-unlocked') {
+      return i18n.fill(text.subscriptionUnlockedStatus, { month: view.subscriptionMonth });
+    }
+    if (code === 'subscription-expired') return text.subscriptionExpiredStatus;
+    if (code === 'license-free') return text.licenseEmpty;
     if (code === 'license-cleared') return text.licenseClearedStatus;
     return errorText(code);
   }
@@ -409,8 +445,12 @@
     renderQuota();
     renderActions();
     if (!result.ok) setStatusCode('error', 'invalid-license');
+    else if (result.expired) setStatusCode('error', 'subscription-expired');
     else if (result.cleared) setStatusCode('info', 'license-cleared');
-    else setStatusCode('ok', 'license-unlocked');
+    else if (!result.unlocked) setStatusCode('info', 'license-free');
+    else if (quotaApi.peek(storage(), new Date()).licenseKind === 'subscription') {
+      setStatusCode('ok', 'subscription-unlocked');
+    } else setStatusCode('ok', 'license-unlocked');
   }
 
   document.getElementById('lang-zh').addEventListener('click', function () { setLang('zh'); });

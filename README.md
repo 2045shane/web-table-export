@@ -2,6 +2,7 @@
 
 Cut：`WEB-EXPORT-CUT-2026-10-28-v1`（表格导出范围，本刀不重开）  
 收费墙：`PLUGIN-PAYWALL-CUT-2026-10-29-v1`  
+按月订阅占位：`WEB-TABLE-SUB-CUT-2026-11-10-v1`（本地订阅码 + 即将上线文案，不收款）  
 界面和模块地图（改配额 / 许可码前先看）：[`FEATURE_MAP.md`](FEATURE_MAP.md)
 
 把**当前网页里已经看得见的表格**导出成 CSV 和 Excel（`.xlsx`）。这是一个 Chrome Manifest V3 扩展，主路径是工具栏弹出窗口，标题为「导出」。
@@ -94,6 +95,41 @@ WTE1.PAID.3c5a2030
 
 本切没有 Chrome 网上应用店付费上架，没有支付 SDK，也没有服务端计费或配额。
 
+## 按月订阅（即将上线）
+
+这一刀（`WEB-TABLE-SUB-CUT-2026-11-10-v1`）只加本地订阅码和占位文案。价格未定，码由谁发放也未定，扩展里不收款。本刀不接入 Creem、Dodo 或任何支付 SDK。
+
+`src/quota.js` 里的 `SUBSCRIPTION_CHECKOUT_ENABLED = false` 留给以后的收款服务。本刀必须保持 `false`。弹出窗口没有付款按钮，没有结账链接，也没有支付 SDK。
+
+触顶面板（当日次数用完）和许可码区域都会显示「按月订阅（即将上线）」。旁边仍是「有问题请联系我」，小红书私信「珊哥爱读书」。
+
+订阅码格式：
+
+```text
+WTE2.SUB.<YYYYMM>.<checksum>
+```
+
+- `YYYYMM` 是自然月，例如 `202611` 表示 2026 年 11 月。到期规则写死为自然月（本机时区的日历月），不是滚动 30 天
+- 校验和与 `WTE1` 相同：`licenseChecksum`（FNV-1a 32 位）只对正文 `WTE2.SUB.YYYYMM` 计算，得到 8 位十六进制
+- `202611` 从本机 `2026-11-01 00:00:00` 到 `2026-11-30 23:59:59` 有效。`2026-12-01 00:00:00` 起过期。还没到这个月时不解锁
+- 当月有效：付费档不变，每天 1000 次，单次行数本机无硬顶。弹窗档位显示「订阅至 2026-11」
+- 过期：自动回到免费档（每天 3 次、单次 100 行），并提示「订阅已到期」（英文 `Subscription expired`）。当天已经用完 3 次则不能再导出，也不会下载空文件。已存的码还在，不用再保存一次
+- `WTE1.PAID.*` 仍是永久许可，没有到期。弹窗档位显示「永久许可」。没有有效码时显示「免费」
+- 源码公开。本地码不是防破解：读仓库的人可以用同一个函数算出校验和。它只用来把随便写的备注和本机接受的码分开，不是支付凭证，也不是 API key
+
+示例（算法不变的话这两串是固定的）：
+
+```text
+WTE2.SUB.202611.d5acd8e1
+WTE2.SUB.202610.d4acd74e
+```
+
+`202611` 在 2026 年 11 月是有效订阅。`202610` 从 2026 年 11 月起是过期订阅。换一个月可以自己生成：
+
+```bash
+node -e "const q=require('./src/quota.js'); console.log(q.buildSubscriptionLicense('202611')); console.log(q.buildSubscriptionLicense('202610'));"
+```
+
 ## 服务条款与可见范围
 
 只导出你当前打开的页面上、没有被隐藏的表格行。请遵守目标网站的服务条款。不要用它去绕过登录、验证码、付费墙，或把网站不打算公开下载的数据批量拉走。
@@ -163,7 +199,7 @@ npm install
 npm test
 ```
 
-`npm test` 会先跑 `npm run lint`（`scripts/check-paywall-invariants.mjs`），再跑 `node --test test/*.test.js`。不变量脚本不过，整次测试就是失败。它拦住已经出过一次的回退：`licenseNote` 只存文字却不抬配额、免费次数不写在唯一的 `FREE_DAILY_EXPORT_LIMIT = 3`、导出前把行截短、把 CSV 或 Excel 锁进付费档。同一条命令也在 `.github/workflows/ci.yml` 里。
+`npm test` 会先跑 `npm run lint`（`scripts/check-paywall-invariants.mjs`），再跑 `node --test test/*.test.js`。不变量脚本不过，整次测试就是失败。它拦住已经出过一次的回退：`licenseNote` 只存文字却不抬配额、免费次数不写在唯一的 `FREE_DAILY_EXPORT_LIMIT = 3`、导出前把行截短、把 CSV 或 Excel 锁进付费档。订阅码过期必须回到免费档；`SUBSCRIPTION_CHECKOUT_ENABLED` 必须是 `false`，源码里不能出现支付 SDK 或结账 URL。同一条命令也在 `.github/workflows/ci.yml` 里。
 
 测试用的 `jsdom` 只在开发时使用，不会打进扩展。
 
@@ -178,6 +214,6 @@ npm test
 | `src/parser.js` | 唯一的表格解析 |
 | `src/csv.js` | CSV |
 | `src/xlsx.js` | 不依赖第三方的 `.xlsx` |
-| `src/quota.js` | `FREE_DAILY_EXPORT_LIMIT`、`FREE_EXPORT_MAX_ROWS`、许可码校验 |
+| `src/quota.js` | `FREE_DAILY_EXPORT_LIMIT`、`FREE_EXPORT_MAX_ROWS`、`WTE1` / `WTE2.SUB` 校验、`SUBSCRIPTION_CHECKOUT_ENABLED` |
 | `src/i18n.js` | 中英文字 |
 | `src/popup.html` | 「导出」弹出窗口 |
